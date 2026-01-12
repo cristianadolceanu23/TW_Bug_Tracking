@@ -32,10 +32,10 @@ app.use("/bugs", bugRoutes)
 
 sequelize.authenticate()
   .then(() => {
-    console.log("SQLite connected ✅")
+    console.log("SQLite connected")
   })
   .catch((err) => {
-    console.error("SQLite connection error ❌", err)
+    console.error("SQLite connection error", err)
   })
 
 User.belongsToMany(Project, { through: Membership })
@@ -53,10 +53,10 @@ Bug.belongsTo(User)
 
   sequelize.sync()
   .then(() => {
-    console.log("Database synced ✅")
+    console.log("Database synced")
   })
   .catch((err) => {
-    console.error("Sync error ❌", err)
+    console.error("Sync error", err)
   })
 
 

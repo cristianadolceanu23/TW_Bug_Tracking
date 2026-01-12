@@ -5,7 +5,7 @@ const User = require("../models/User")
 const Project = require("../models/Project")
 const Membership = require("../models/Membership")
 
-// POST /projects  (creează proiect și îl face pe creator MP)
+// POST /projects  (creeaza proiect si il face pe creator MP)
 router.post("/", auth, async (req, res) => {
   try {
     const { name, repositoryUrl } = req.body
@@ -86,7 +86,7 @@ router.post("/:projectId/testers", auth, async (req, res) => {
       role: "TST"
     })
 
-    return res.status(201).json({ message: "Tester added ✅" })
+    return res.status(201).json({ message: "Tester added" })
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: String(err) })
   }
