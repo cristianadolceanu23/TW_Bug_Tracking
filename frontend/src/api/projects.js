@@ -26,3 +26,9 @@ export async function updateProject(projectId, payload) {
   const res = await api.patch("/projects/" + projectId, payload);
   return res.data;
 }
+
+export async function addTesterToProject(projectId, testerEmail) {
+  const res = await api.post("/projects/" + projectId + "/testers", { testerEmail });
+  return res.data;
+}
+

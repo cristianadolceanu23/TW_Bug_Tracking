@@ -26,14 +26,16 @@ router.post("/", auth, async (req, res) => {
     }
 
     const bug = await Bug.create({
-      title,
-      description,
-      severity,
-      priority,
-      reportedCommit,
-      ProjectId: projectId,
-      UserId: req.user.id
-    })
+  title,
+  description,
+  severity,
+  priority,
+  reportedCommit,
+  ProjectId: projectId,
+  reporterId: req.user.id
+})
+
+
 
     return res.status(201).json(bug)
   } catch (err) {
@@ -56,7 +58,10 @@ router.get("/project/:projectId", auth, async (req, res) => {
 
     const bugs = await Bug.findAll({
       where: { ProjectId: projectId },
-      include: [{ model: User, attributes: ["id", "email"] }]
+      include: [
+  { model: User, as: "Reporter", attributes: ["id", "email"] },
+  { model: User, as: "Assignee", attributes: ["id", "email"] }
+]
     })
 
     return res.json(bugs)
@@ -92,10 +97,77 @@ router.patch("/:id/resolve", auth, async (req, res) => {
     bug.resolvedCommit = resolvedCommit
     await bug.save()
 
-    return res.json({ message: "Bug resolved ✅", bug })
+    return res.json({ message: "Bug resolved ", bug })
+  } catch (err) {
+    return res.status(500).json({ message: "Server error", error: String(err) })
+  }
+  
+})
+
+// PATCH /bugs/:id/assign (MP-only)
+// -> setează assignedToUserId = req.user.id și status="assigned"
+router.patch("/:id/assign", auth, async (req, res) => {
+  try {
+    const { id } = req.params
+
+    const bug = await Bug.findByPk(id)
+    if (!bug) {
+      return res.status(404).json({ message: "Bug not found" })
+    }
+
+    // verificăm că userul curent este MP pe proiectul bugului
+    const mp = await Membership.findOne({
+      where: {
+        UserId: req.user.id,
+        ProjectId: bug.ProjectId,
+        role: "MP"
+      }
+    })
+
+    if (!mp) {
+      return res.status(403).json({ message: "Only MP can assign bugs" })
+    }
+
+    //  refuz dacă deja assigned sau resolved (varianta simplă)
+    if (bug.status !== "open" || bug.assignedToUserId) {
+      return res.status(409).json({ message: "Bug is already assigned or resolved" })
+    }
+
+    bug.assignedToUserId = req.user.id
+    bug.status = "assigned"
+    await bug.save()
+
+    return res.json({ message: "Bug assigned ", bug })
   } catch (err) {
     return res.status(500).json({ message: "Server error", error: String(err) })
   }
 })
+
+// GET /bugs  (toate bug-urile din proiectele unde userul e membru)
+router.get("/", auth, async (req, res) => {
+  try {
+    // 1) aflăm proiectele unde userul e membru
+    const memberships = await Membership.findAll({
+      where: { UserId: req.user.id }
+    });
+
+    const projectIds = memberships.map(m => m.ProjectId);
+
+    // dacă nu e în niciun proiect
+    if (projectIds.length === 0) {
+      return res.json([]);
+    }
+
+    // 2) luăm bug-urile din acele proiecte
+    const bugs = await Bug.findAll({
+      where: { ProjectId: projectIds }
+    });
+
+    return res.json(bugs);
+  } catch (err) {
+    return res.status(500).json({ message: "Server error", error: String(err) });
+  }
+});
+
 
 module.exports = router

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { getMyProjects, getAllProjects, joinProjectAsTester, updateProject } from "../api/projects";
 import { getBugsByProject, createBug, assignBugToMe, resolveBug } from "../api/bugs";
 import { getGithubRepoInfo } from "../api/external";
 import { getCurrentUserFromToken } from "../utils/auth";
+import { getMyProjects, getAllProjects, joinProjectAsTester, updateProject, addTesterToProject } from "../api/projects";
+
 
 /* ProjectDetails:
    Aici demonstram aproape toate cerintele:
@@ -41,6 +42,9 @@ export default function ProjectDetails() {
   // Form: edit proiect (MP)
   const [editName, setEditName] = useState("");
   const [editRepo, setEditRepo] = useState("");
+
+  // Form: adauga tester (MP)
+  const [testerEmail, setTesterEmail] = useState("");
 
   // Input per bug pentru resolve commit
   const [resolveCommit, setResolveCommit] = useState({});
@@ -188,6 +192,20 @@ export default function ProjectDetails() {
     }
   };
 
+  const handleAddTester = async (e) => {
+  e.preventDefault();
+  setError("");
+  setInfo("");
+
+  try {
+    await addTesterToProject(projectId, testerEmail);
+    setTesterEmail("");
+    setInfo("Tester added");
+  } catch (err) {
+    setError(err?.response?.data?.message || "Could not add tester");
+  }
+};
+
   const handleUpdateProject = async (e) => {
     // Cerinta: MP poate modifica proiectul (ex: name, repositoryUrl)
     e.preventDefault();
@@ -237,7 +255,7 @@ export default function ProjectDetails() {
         <div className="card" style={{ marginTop: 16 }}>
           <h3 style={{ marginTop: 0 }}>Join project</h3>
           <p className="muted" style={{ marginTop: 0 }}>
-            Cerinta: student non-member se poate inscrie ca tester (TST).
+            You are not a member of this project. Click the button below to join as tester.
           </p>
           <button onClick={handleJoin}>Join as Tester</button>
         </div>
@@ -249,16 +267,27 @@ export default function ProjectDetails() {
         {repoInfo ? (
           <ul style={{ margin: 0, paddingLeft: 18 }}>
             <li>
-              <b>{repoInfo.full_name}</b>
+              <b>
+                {repoInfo.full_name || `${repoInfo.owner}/${repoInfo.repo}`}
+              </b>
             </li>
-            <li>Stars: {repoInfo.stargazers_count}</li>
-            <li>Forks: {repoInfo.forks_count}</li>
-            <li>Open issues: {repoInfo.open_issues_count}</li>
-            <li>Updated at: {repoInfo.updated_at}</li>
+
+            <li>Stars: {repoInfo.stargazers_count ?? repoInfo.stars}</li>
+            <li>Forks: {repoInfo.forks_count ?? repoInfo.forks}</li>
+            <li>Open issues: {repoInfo.open_issues_count ?? repoInfo.openIssues}</li>
+
+            {repoInfo.updated_at && <li>Updated at: {repoInfo.updated_at}</li>}
+
+            {repoInfo.lastCommit && (
+              <li>
+                Last commit: <b>{String(repoInfo.lastCommit.sha).slice(0, 7)}</b>{" "}
+                – {repoInfo.lastCommit.message}
+              </li>
+            )}
           </ul>
         ) : (
           <p className="muted" style={{ margin: 0 }}>
-            Repo info apare dupa ce backend implementeaza endpoint-ul /external/github/repo.
+            No repository info available.
           </p>
         )}
       </div>
@@ -275,13 +304,28 @@ export default function ProjectDetails() {
         </div>
       )}
 
+      {/* MP -> add tester */}
+      {role === "MP" && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h3 style={{ marginTop: 0 }}>Add tester (MP)</h3>
+          <form className="stack" onSubmit={handleAddTester}>
+            <input value={testerEmail} onChange={(e) => setTesterEmail(e.target.value)} placeholder="tester@email.com" />
+            <button>Add tester</button>
+            <p className="muted" style={{ margin: 0 }}>
+              Note: Only MP can add testers to the project.
+            </p>
+          </form>
+        </div>
+      )}
+
+
       {/* Membri (TST/MP) -> report bug + list */}
       {role && (
         <>
           <div className="card" style={{ marginTop: 16 }}>
             <h3 style={{ marginTop: 0 }}>Report bug</h3>
             <p className="muted" style={{ marginTop: 0 }}>
-              Cerinta: raportare bug cu severity/priority/description + tested commit.
+              Report a bug with the form below.
             </p>
 
             <form className="stack" onSubmit={handleReportBug}>
@@ -289,12 +333,14 @@ export default function ProjectDetails() {
               <textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Description" />
 
               <div className="grid-2">
+                <label className="label">Severity</label>
                 <select value={severity} onChange={(e) => setSeverity(e.target.value)}>
                   <option value="low">low</option>
                   <option value="medium">medium</option>
                   <option value="high">high</option>
                 </select>
 
+                <label className="label">Priority</label>
                 <select value={priority} onChange={(e) => setPriority(e.target.value)}>
                   <option value="low">low</option>
                   <option value="medium">medium</option>
@@ -383,7 +429,7 @@ export default function ProjectDetails() {
 
                           {b.assignedToUserId && !assignedToMe && b.status !== "resolved" && (
                             <div className="muted" style={{ fontSize: 12 }}>
-                              Resolve este disponibil doar pentru MP-ul asignat.
+                              Bug assigned to another MP.
                             </div>
                           )}
                         </div>

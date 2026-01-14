@@ -29,7 +29,18 @@ const Bug = sequelize.define("Bug", {
   resolvedCommit: {
     type: DataTypes.STRING,
     allowNull: true
-  }
+  },
+
+   reporterId: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+
+  assignedToUserId: {
+  type: DataTypes.INTEGER,
+  allowNull: true
+}
+
 })
 
 module.exports = Bug

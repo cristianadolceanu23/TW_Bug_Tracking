@@ -117,6 +117,15 @@ button:disabled {
   gap: 12px;
 }
 
+.label {
+  display: block;
+  margin-bottom: 6px;
+  color: #e7edf7;
+  font-size: 14px;   
+  font-weight: 600;  
+  line-height: 1.2;
+}
+
 @media (max-width: 700px) {
   .grid-2 {
     grid-template-columns: 1fr;
